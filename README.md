@@ -43,11 +43,23 @@ Requirements: Windows, ActivityWatch (`aw-server` running), TeamViewer, Python 3
    pip install ./aw-watcher-teamviewer
    ```
 
-   Make sure the Python `Scripts` directory (for example `C:\Python313\Scripts`) is on your `PATH`. Check with:
+   Make sure the Python `Scripts` directory is on your `PATH`. Check with:
 
    ```bash
    where aw-watcher-teamviewer
    ```
+
+   If it prints nothing, pip probably installed into your user folder and warned `... is not on PATH`
+   (typically `%APPDATA%\Python\Python313\Scripts`). Add that folder to your user `PATH`
+   (PowerShell, adjust the Python version):
+
+   ```powershell
+   $s = "$env:APPDATA\Python\Python313\Scripts"
+   [Environment]::SetEnvironmentVariable("Path", [Environment]::GetEnvironmentVariable("Path","User").TrimEnd(';') + ";" + $s, "User")
+   ```
+
+   **Sign out and back in** (or reboot) so that aw-qt, which is started by Windows at logon, inherits the new `PATH`.
+   Restarting aw-qt from a terminal that was opened before the change will not work.
 
 2. **Let ActivityWatch manage it.** `aw-qt` (the ActivityWatch tray app) finds modules named `aw-*` on your `PATH` and starts the ones listed in `autostart_modules` in its config file:
 
@@ -79,6 +91,7 @@ aw-watcher-teamviewer --interval 30 --port 5600 --host 127.0.0.1
 
 ## Troubleshooting
 
+- `Module aw-watcher-teamviewer not found` in the aw-qt log (`%LOCALAPPDATA%\activitywatch\activitywatch\Logs\aw-qt`): aw-qt could not see the executable on its `PATH` (`Found 0 system modules`). See the `PATH` step above.
 - `ActivityWatch unreachable`: `aw-server` isn't running or listens on another port (`--port`).
 - No events: check that the log files above exist. TeamViewer must have *Connection log* enabled (default). If you installed TeamViewer to a custom location, the incoming log is expected under `Program Files\TeamViewer`.
 - Dates are read as local time in `dd-mm-yyyy hh:mm:ss`, as TeamViewer writes them.
