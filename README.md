@@ -62,6 +62,8 @@ The local logs do not contain the device name or group. To add them, the watcher
    It prints how many reports the API returned and the field names of one report.
 5. Restart ActivityWatch (or the watcher). Existing events are updated on the next sync; recent sessions are retried for 24 hours in case the API is slow to publish them.
 
+Sessions to devices that are not in your TeamViewer computer list, and incoming sessions, have no device name or group in the API, so those fields stay empty for them.
+
 Connection reports require a TeamViewer licence that includes reporting, and only cover sessions of your own account or company.
 
 ## Installation

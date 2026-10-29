@@ -29,7 +29,6 @@ from datetime import datetime, timedelta, timezone
 
 CLIENT = "aw-watcher-teamviewer"
 EVENT_TYPE = "teamviewer.session"
-BUCKET_SCHEMA = 2  # 1 = old local-time/partner_* events, 2 = UTC + device_* fields
 TIME_FORMAT = "%d-%m-%Y %H:%M:%S"
 TV_API = "https://webapi.teamviewer.com/api/v1"
 RETRY_WINDOW = timedelta(hours=24)  # API reports may lag; retry recent sessions
@@ -141,9 +140,8 @@ def fetch_reports(token, start, end):
         page = tv_get(token, "/reports/connections", params)
         got = page.get("records", [])
         records += got
-        if not got or not page.get("remaining", 0):
+        if not got or not page.get("records_remaining", 0):
             return records
-        # `next_offset` per the API; fall back to the last record's id.
         params["offset_id"] = page.get("next_offset") or got[-1].get("id")
 
 
@@ -187,18 +185,23 @@ def api(base, method, path, body=None):
 
 
 def ensure_bucket(base, bucket_id, hostname):
-    """Create the bucket; recreate it if it holds events of an older schema."""
+    """Create the bucket; recreate it if it holds events of the old schema.
+
+    (aw-server does not persist bucket `data`, so the schema is detected from
+    the events themselves: version 2 events carry `device_id`.)
+    """
     try:
-        info = api(base, "GET", f"/buckets/{bucket_id}")
-        if (info.get("data") or {}).get("schema") == BUCKET_SCHEMA:
-            return
-        api(base, "DELETE", f"/buckets/{bucket_id}?force=1")
+        api(base, "GET", f"/buckets/{bucket_id}")
     except urllib.error.HTTPError as e:
         if e.code != 404:
             raise
+    else:
+        sample = api(base, "GET", f"/buckets/{bucket_id}/events?limit=1")
+        if not sample or "device_id" in sample[0]["data"]:
+            return
+        api(base, "DELETE", f"/buckets/{bucket_id}?force=1")
     api(base, "POST", f"/buckets/{bucket_id}",
-        {"client": CLIENT, "type": EVENT_TYPE, "hostname": hostname,
-         "data": {"schema": BUCKET_SCHEMA}})
+        {"client": CLIENT, "type": EVENT_TYPE, "hostname": hostname})
 
 
 def sync(base, bucket_id, token):
