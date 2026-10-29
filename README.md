@@ -20,17 +20,49 @@ Bucket: `aw-watcher-teamviewer_<hostname>` (event type `teamviewer.session`)
   "timestamp": "2026-01-15T14:30:00+00:00",
   "duration": 300.0,
   "data": {
-    "direction": "incoming",
-    "partner_id": "123456789",
-    "partner_name": "Jane Doe",
+    "direction": "outgoing",
+    "device_id": "123456789",
+    "device_name": "Acme - PC Reception",
+    "group_name": "Acme",
+    "notes": "",
     "local_user": "John Smith",
     "session_type": "RemoteControl",
-    "guid": "00000000-0000-0000-0000-000000000000"
+    "guid": "00000000-0000-0000-0000-000000000000",
+    "api_checked": true
   }
 }
 ```
 
-Sessions are de-duplicated by `guid`, so re-running or restarting never creates duplicates.
+- `device_id` is the TeamViewer ID of the remote device (outgoing) or of the person who connected to you (incoming).
+- `device_name`, `group_name` and `notes` come from the TeamViewer Web API and are only filled in when an API token is configured (see below). Without a token, `device_name` holds the partner name from the log (incoming sessions only) and `group_name` is empty.
+- All timestamps in TeamViewer's log files are **UTC**; ActivityWatch shows them in your local time zone.
+- Sessions are de-duplicated by `guid`, so re-running or restarting never creates duplicates.
+
+## Device name and group (optional, TeamViewer Web API)
+
+The local logs do not contain the device name or group. To add them, the watcher can call the official
+[TeamViewer Web API](https://www.teamviewer.com/en/global/support/knowledge-base/teamviewer-remote/for-developers/use-the-teamviewer-api/)
+(`GET /api/v1/reports/connections`) with a **script token**:
+
+1. In the [TeamViewer Management Console](https://login.teamviewer.com) open your profile → **Edit profile → Apps → Create script token**.
+2. Give it only the permission to read connection reports (*Connections → View connection reports*; the wording may vary by console version).
+3. Save the token, and only the token, in this file (create the folders if needed):
+
+   ```
+   %LOCALAPPDATA%\activitywatch\activitywatch\aw-watcher-teamviewer\token.txt
+   ```
+
+   Alternatively set the `TEAMVIEWER_API_TOKEN` environment variable. Treat the token like a password and never commit it.
+4. Test it:
+
+   ```bash
+   aw-watcher-teamviewer --check-api
+   ```
+
+   It prints how many reports the API returned and the field names of one report.
+5. Restart ActivityWatch (or the watcher). Existing events are updated on the next sync; recent sessions are retried for 24 hours in case the API is slow to publish them.
+
+Connection reports require a TeamViewer licence that includes reporting, and only cover sessions of your own account or company.
 
 ## Installation
 
