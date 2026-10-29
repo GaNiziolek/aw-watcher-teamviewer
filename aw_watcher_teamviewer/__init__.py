@@ -13,6 +13,7 @@ import argparse
 import glob
 import json
 import os
+import re
 import socket
 import time
 import urllib.error
@@ -26,17 +27,24 @@ TIME_FORMAT = "%d-%m-%Y %H:%M:%S"  # local time, as written by TeamViewer
 
 def log_files():
     """Yield (direction, path) for every TeamViewer connection log found."""
+    candidates = []
     appdata = os.environ.get("APPDATA", "")
     if appdata:
-        yield "outgoing", os.path.join(appdata, "TeamViewer", "Connections.txt")
+        candidates.append(("outgoing", os.path.join(appdata, "TeamViewer", "Connections.txt")))
     roots = [os.environ.get("ProgramFiles", r"C:\Program Files"),
              os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)")]
     for root in roots:
-        yield "incoming", os.path.join(root, "TeamViewer", "Connections_incoming.txt")
+        candidates.append(("incoming", os.path.join(root, "TeamViewer", "Connections_incoming.txt")))
     # Some installs keep both logs in one place; accept either name anywhere.
     for root in roots:
         for path in glob.glob(os.path.join(root, "TeamViewer", "Connections*.txt")):
-            yield ("incoming" if "incoming" in path.lower() else "outgoing"), path
+            candidates.append(("incoming" if "incoming" in path.lower() else "outgoing", path))
+    seen = set()
+    for direction, path in candidates:
+        key = os.path.normcase(path)
+        if key not in seen:
+            seen.add(key)
+            yield direction, path
 
 
 def parse_log(direction, path):
@@ -49,7 +57,9 @@ def parse_log(direction, path):
     except OSError:
         return sessions
     for line in lines:
-        cols = [c.strip() for c in line.split("\t")]
+        # The incoming log is tab separated, the outgoing one is padded with
+        # runs of spaces; single spaces occur inside names and timestamps.
+        cols = [c.strip() for c in re.split(r"\t|\s{2,}", line)]
         cols = [c for c in cols if c != ""]
         # The outgoing log omits the partner name when it is unknown.
         if len(cols) == 6:

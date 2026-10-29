@@ -76,6 +76,10 @@ Requirements: Windows, ActivityWatch (`aw-server` running), TeamViewer, Python 3
 
 3. **Verify.** Open the ActivityWatch web UI at <http://localhost:5600> and check **Buckets** for `aw-watcher-teamviewer_<hostname>`, or use the **Timeline** view.
 
+   The Timeline hides buckets that have no events in the selected range (default: last 4 hours). If you have not had a TeamViewer session recently, pick a longer range (e.g. 48h) or a date range that contains one.
+
+   The first run imports your whole TeamViewer connection history, which can be a thousand sessions or more.
+
 ### Run manually (without aw-qt)
 
 ```bash
